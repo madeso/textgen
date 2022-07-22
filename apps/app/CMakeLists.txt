@@ -17,6 +17,7 @@ target_link_libraries(
         external::sdl
         external::opengl
         external::dear_imgui
+        external::imgui_node_editor
         external::stb_image
         textgen::lib
     PRIVATE

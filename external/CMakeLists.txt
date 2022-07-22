@@ -84,6 +84,39 @@ add_library(external::dear_imgui ALIAS imgui_lib)
 
 
 # -----------------------------------------------------------------------------
+# imgui node editor
+add_library(imgui_node_editor_lib STATIC
+    imgui-node-editor/crude_json.cpp
+    imgui-node-editor/crude_json.h
+    imgui-node-editor/imgui_bezier_math.h
+    imgui-node-editor/imgui_bezier_math.inl
+    imgui-node-editor/imgui_canvas.cpp
+    imgui-node-editor/imgui_canvas.cpp
+    imgui-node-editor/imgui_canvas.h
+    imgui-node-editor/imgui_canvas.h
+    imgui-node-editor/imgui_extra_math.h
+    imgui-node-editor/imgui_extra_math.inl
+    imgui-node-editor/imgui_node_editor_api.cpp
+    imgui-node-editor/imgui_node_editor_internal.h
+    imgui-node-editor/imgui_node_editor_internal.inl
+    imgui-node-editor/imgui_node_editor.cpp
+    imgui-node-editor/imgui_node_editor.h
+    imgui-node-editor/misc/imgui_node_editor.natvis
+)
+target_include_directories(imgui_node_editor_lib
+    PUBLIC
+        imgui-node-editor
+)
+target_link_libraries(imgui_node_editor_lib
+    PUBLIC
+        external::dear_imgui
+)
+add_library(external::imgui_node_editor ALIAS imgui_node_editor_lib)
+
+
+
+
+# -----------------------------------------------------------------------------
 # stb image
 add_library(stb_image_lib STATIC
     stb/stb-image.cc
