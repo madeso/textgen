@@ -24,7 +24,7 @@
 
 // custom/local headers
 #include "app/debug_opengl.h"
-
+#include "app/app.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // common "header"
@@ -126,7 +126,7 @@ main(int, char**)
 
     update_viewport();
 
-    
+    auto app = make_app();
 
     ///////////////////////////////////////////////////////////////////////////
     // main
@@ -136,8 +136,6 @@ main(int, char**)
 
     while(running)
     {
-        
-
         SDL_Event e;
         while(SDL_PollEvent(&e) != 0)
         {
@@ -189,13 +187,7 @@ main(int, char**)
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
-            // ImGui::ShowDemoWindow();
-
-            if(ImGui::Begin("Debug"))
-            {
-                if(ImGui::Button("Quit")) { running = false; }
-            }
-            ImGui::End();
+            app->on_gui();
 
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -203,6 +195,8 @@ main(int, char**)
 
         SDL_GL_SwapWindow(window);
     }
+
+    app.reset();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();

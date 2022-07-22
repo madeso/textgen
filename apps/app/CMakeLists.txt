@@ -2,8 +2,8 @@
 # main application
 set(app_src
     src/app/main.cc
-    src/app/debug_opengl.cc
-    src/app/debug_opengl.h
+    src/app/app.cc src/app/app.h
+    src/app/debug_opengl.cc src/app/debug_opengl.h
 )
 source_group("" FILES ${app_src})
 add_executable(textgen WIN32 MACOSX_BUNDLE ${app_src})
