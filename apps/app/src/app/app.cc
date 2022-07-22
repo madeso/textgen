@@ -30,7 +30,29 @@ struct TextGen : App
             auto& io = ImGui::GetIO();
             ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate>0.0f : 0.0f);
         }*/
-        ImGui::Begin("window");
+
+        bool main_window = true;
+
+        if(main_window)
+        {
+            auto& io = ImGui::GetIO();
+            ImGui::SetNextWindowPos({0, 0});
+            ImGui::SetNextWindowSize(io.DisplaySize);
+
+            const auto flags =
+              ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoCollapse
+            ;
+
+            ImGui::Begin("window", nullptr, flags);
+        }
+        else
+        {
+            ImGui::Begin("window");
+        }
 
         node_editor::SetCurrentEditor(node_editor_context);
         node_editor::Begin("My Editor", ImVec2(0.0, 0.0f));
