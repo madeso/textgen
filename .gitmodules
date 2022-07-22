@@ -1,0 +1,3 @@
+[submodule "external/imgui-node-editor"]
+	path = external/imgui-node-editor
+	url = git@github.com:thedmd/imgui-node-editor.git
