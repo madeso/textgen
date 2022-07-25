@@ -49,7 +49,20 @@ target_link_libraries(opengl_lib
         external::glad
 )
 add_library(external::opengl ALIAS opengl_lib)
- 
+
+
+
+
+# -----------------------------------------------------------------------------
+# fast noise lite
+add_library(fastnoiselite_lib INTERFACE
+)
+target_include_directories(fastnoiselite_lib SYSTEM
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/FastNoiseLite/Cpp/
+)
+add_library(external::fast_noise_lite ALIAS fastnoiselite_lib)
+
 
 
 

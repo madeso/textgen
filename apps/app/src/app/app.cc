@@ -5,12 +5,17 @@
 // #include <imgui_internal.h>
 #include "imgui_node_editor.h"
 
-namespace node_editor = ax::NodeEditor;
 
+#include "textgen/textgen.h"
+
+
+
+namespace node_editor = ax::NodeEditor;
 
 
 struct TextGen : App
 {
+    textgen::TextGen textgen;
     node_editor::EditorContext* node_editor_context = nullptr;
 
     TextGen()
@@ -18,6 +23,7 @@ struct TextGen : App
         node_editor::Config config;
         config.SettingsFile = "textgen-nodes.json";
         node_editor_context = node_editor::CreateEditor(&config);
+        textgen.nodes.emplace_back(std::make_unique<textgen::NoiseNode>());
     }
 
     ~TextGen()
@@ -26,6 +32,7 @@ struct TextGen : App
     }
     void on_gui() override
     {
+        textgen.work();
         /*{
             auto& io = ImGui::GetIO();
             ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate>0.0f : 0.0f);
@@ -56,11 +63,15 @@ struct TextGen : App
 
         node_editor::SetCurrentEditor(node_editor_context);
         node_editor::Begin("My Editor", ImVec2(0.0, 0.0f));
-        unsigned int uniqueId = 1;
-        
-        // Start drawing nodes.
-        node_editor::BeginNode(uniqueId++);
-            ImGui::Text("Node A");
+        // unsigned int uniqueId = 1;
+
+        for(auto& node: textgen.nodes)
+        {
+            if(node->id == 0) { continue; }
+
+            node_editor::BeginNode(node->id);
+            ImGui::TextUnformatted(node->get_name().c_str());
+            /*
             node_editor::BeginPin(uniqueId++, node_editor::PinKind::Input);
                 ImGui::Text("-> In");
             node_editor::EndPin();
@@ -68,7 +79,9 @@ struct TextGen : App
             node_editor::BeginPin(uniqueId++, node_editor::PinKind::Output);
                 ImGui::Text("Out ->");
             node_editor::EndPin();
-        node_editor::EndNode();
+            */
+            node_editor::EndNode();
+        }
         node_editor::End();
         node_editor::SetCurrentEditor(nullptr);
         

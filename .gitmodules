@@ -4,3 +4,6 @@
 [submodule "external/imgui"]
 	path = external/imgui
 	url = git@github.com:ocornut/imgui.git
+[submodule "external/FastNoiseLite"]
+	path = external/FastNoiseLite
+	url = git@github.com:Auburn/FastNoiseLite.git

@@ -12,5 +12,7 @@ target_link_libraries(textgen_lib
     PRIVATE
         textgen::project_options
         textgen::project_warnings
+
+        external::fast_noise_lite
 )
 add_library(textgen::lib ALIAS textgen_lib)
