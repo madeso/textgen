@@ -93,13 +93,15 @@ void Image::set(unsigned int x, unsigned int y, const Rgb& c)
 // ----------------------------------------------------------------------------
 
 
-void
+bool
 Node::work()
 {
-    if(dirty == false) { return; }
+    if(dirty == false) { return false; }
 
     do_work();
     dirty = false;
+
+    return true;
 }
 
 
@@ -121,9 +123,8 @@ NoiseNode::do_work()
     auto noise = FastNoiseLite{};
     noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
 
-    // Gather noise data
-    auto image = Image{};
-    image.setup(size, size, Channels::grayscale);
+    image = Image{};
+    image->setup(size, size, Channels::grayscale);
     
     for (unsigned int y = 0; y < size; y++)
     {
@@ -131,16 +132,22 @@ NoiseNode::do_work()
         {
             const auto color = noise.GetNoise
             (
-                static_cast<float>(x) * scale,
-                static_cast<float>(y) * scale
+                dx + static_cast<float>(x) * scale,
+                dy + static_cast<float>(y) * scale
             );
-            image.set(x, y, Rgb{color});
+            image->set(x, y, Rgb{color});
         }
     }
 }
 
 
 // ----------------------------------------------------------------------------
+
+
+TextGen::TextGen()
+    : make_native_image_fun([](const Image&){return nullptr;})
+{
+}
 
 
 unsigned int
@@ -159,7 +166,11 @@ TextGen::work()
     {
         if(n->id == 0) { n->id = create_new_id(); }
 
-        n->work();
+        const auto was_updated = n->work();
+        if(was_updated && n->image)
+        {
+            n->native_image = make_native_image_fun(*n->image);
+        }
     }
 }
 

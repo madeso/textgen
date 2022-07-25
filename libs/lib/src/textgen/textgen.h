@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <optional>
+#include <functional>
 
 
 namespace textgen
@@ -46,15 +48,24 @@ struct Image
 };
 
 
+struct NativeImage
+{
+    virtual ~NativeImage() = default;
+};
+
+
+using MakeNativeImageFun = std::function<std::unique_ptr<NativeImage>(const Image&)>;
+
 struct Node
 {
     unsigned int id = 0;
 
     virtual ~Node() = default;
-    void work();
+    bool work();
 
     bool dirty = true;
-    std::vector<Image> images;
+    std::optional<Image> image;
+    std::unique_ptr<NativeImage> native_image;
 
     virtual std::string get_name() = 0;
     virtual void do_work() = 0;
@@ -64,6 +75,8 @@ struct Node
 struct NoiseNode : Node
 {
     float scale = 1.0f;
+    float dx = 0.0f;
+    float dy = 0.0f;
 
     std::string get_name() override;
     void do_work() override;
@@ -71,8 +84,12 @@ struct NoiseNode : Node
 
 struct TextGen
 {
+    TextGen();
+
     unsigned int next_id = 1;
     std::vector<std::unique_ptr<Node>> nodes;
+
+    MakeNativeImageFun make_native_image_fun;
 
     unsigned int create_new_id();
     void work();
