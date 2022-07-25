@@ -56,27 +56,45 @@ add_library(external::opengl ALIAS opengl_lib)
 # -----------------------------------------------------------------------------
 # dear imgui
 add_library(imgui_lib STATIC
-    imgui-1.78/imgui_demo.cpp
-    imgui-1.78/imgui_widgets.cpp
-    imgui-1.78/imgui.cpp
-    imgui-1.78/imgui_draw.cpp
-    imgui-1.78/examples/imgui_impl_sdl.cpp
-    imgui-1.78/examples/imgui_impl_opengl3.cpp
+    imgui/imconfig.h
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_internal.h
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/imgui.cpp
+    imgui/imgui.h
+    # todo: look into how different stb libs work together
+    imgui/imstb_rectpack.h
+    imgui/imstb_textedit.h
+    imgui/imstb_truetype.h
+
+    imgui/misc/cpp/imgui_stdlib.cpp
+    imgui/misc/cpp/imgui_stdlib.h
+    imgui/backends/imgui_impl_sdl.cpp
+    imgui/backends/imgui_impl_sdl.h
+    imgui/backends/imgui_impl_opengl3.cpp
+    imgui/backends/imgui_impl_opengl3.h
+    imgui/backends/imgui_impl_opengl3_loader.h
 )
-target_include_directories(imgui_lib
+target_include_directories(imgui_lib SYSTEM
     PUBLIC
-        imgui-1.78/
-        imgui-1.78/examples/
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp/
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
+)
+target_compile_definitions(imgui_lib
     PRIVATE
-        external/glad/include
+        -DIMGUI_IMPL_OPENGL_LOADER_GLAD
+    PUBLIC
+        -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
+        # this does not switch to utf-32, this only extends dear imgui to support more fonts 32
+        # -DIMGUI_USE_WCHAR32
 )
 target_link_libraries(imgui_lib
     PUBLIC
-        external::opengl
-)
-target_compile_definitions(imgui_lib
-    PUBLIC
-        -D IMGUI_IMPL_OPENGL_LOADER_GLAD
+        external::sdl
+        external::glad
 )
 add_library(external::dear_imgui ALIAS imgui_lib)
 

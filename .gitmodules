@@ -1,3 +1,6 @@
 [submodule "external/imgui-node-editor"]
 	path = external/imgui-node-editor
 	url = git@github.com:thedmd/imgui-node-editor.git
+[submodule "external/imgui"]
+	path = external/imgui
+	url = git@github.com:ocornut/imgui.git
