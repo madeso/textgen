@@ -1,5 +1,6 @@
 #include "textgen/textgen.h"
 
+// #include <iostream>
 #include <cassert>
 
 #include "FastNoiseLite.h"
@@ -93,6 +94,19 @@ void Image::set(unsigned int x, unsigned int y, const Rgb& c)
 // ----------------------------------------------------------------------------
 
 
+Pin::Pin(PinType t, const std::string& n)
+    : id(0)
+    , type(t)
+    , direction(PinDirection::intput)
+    , name(n)
+    , node(nullptr)
+{
+}
+
+
+// ----------------------------------------------------------------------------
+
+
 bool
 Node::work()
 {
@@ -106,6 +120,12 @@ Node::work()
 
 
 // ----------------------------------------------------------------------------
+
+
+NoiseNode::NoiseNode()
+{
+    outputs.emplace_back(PinType::image, "out");
+}
 
 
 std::string
@@ -144,6 +164,30 @@ NoiseNode::do_work()
 // ----------------------------------------------------------------------------
 
 
+DummyNode::DummyNode()
+{
+    inputs.emplace_back(PinType::image, "noise");
+    outputs.emplace_back(PinType::image, "diffuse");
+    outputs.emplace_back(PinType::image, "ambient");
+}
+
+
+std::string
+DummyNode::get_name()
+{
+    return "dummy";
+}
+
+
+void
+DummyNode::do_work()
+{
+}
+
+
+// ----------------------------------------------------------------------------
+
+
 TextGen::TextGen()
     : make_native_image_fun([](const Image&){return nullptr;})
 {
@@ -162,9 +206,27 @@ TextGen::create_new_id()
 void
 TextGen::work()
 {
-    for(auto& n: nodes)
+    for(auto& n: links)
     {
         if(n->id == 0) { n->id = create_new_id(); }
+    }
+
+    for(auto& n: nodes)
+    {
+        // update id and node refs
+        if(n->id == 0) { n->id = create_new_id(); }
+        for(auto& p: n->inputs)
+        {
+            if(p.id == 0) { p.id = create_new_id(); }
+            p.node = n.get();
+            p.direction = PinDirection::intput;
+        }
+        for(auto& p: n->outputs)
+        {
+            if(p.id == 0) { p.id = create_new_id(); }
+            p.node = n.get();
+            p.direction = PinDirection::output;
+        }
 
         const auto was_updated = n->work();
         if(was_updated && n->image)
@@ -172,6 +234,127 @@ TextGen::work()
             n->native_image = make_native_image_fun(*n->image);
         }
     }
+}
+
+
+
+
+Node*
+TextGen::find_node(unsigned int id)
+{
+    assert(id != 0);
+    if (id == 0) { return nullptr; }
+
+    for (auto& node :nodes)
+    {
+        if (node->id == id)
+        {
+            return node.get();
+        }
+    }
+
+    return nullptr;
+}
+
+
+
+Link*
+TextGen::find_link(unsigned int id)
+{
+    assert(id != 0);
+    if (id == 0) { return nullptr; }
+
+    for (auto& link : links)
+    {
+        if (link->id == id)
+        {
+            return link.get();
+        }
+    }
+
+    return nullptr;
+}
+
+
+
+Pin*
+TextGen::find_pin(unsigned int id)
+{
+    assert(id != 0);
+    if (id == 0) { return nullptr; }
+
+    for (auto& node : nodes)
+    {
+        for (auto& pin : node->inputs)
+        {
+            if (pin.id == id)
+            {
+                return &pin;
+            }
+        }
+
+        for (auto& pin : node->outputs)
+        {
+            if (pin.id == id)
+            {
+                return &pin;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+
+bool TextGen::is_pin_linked(unsigned int id) const
+{
+    assert(id == 0);
+    if (id == 0) { return false; }
+
+    for (auto& link : links)
+    {
+        if (link->start_pin == id || link->end_pin == id)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+
+bool
+TextGen::can_create_link(Pin* a, Pin* b) const
+{
+    if(a == nullptr || b == nullptr)
+    {
+        // std::cout << "must be valid nodes\n";
+        return false;
+    }
+    if(a == b)
+    {
+        // std::cout << "can't be the same node\n";
+        return false;
+    }
+    if(a->direction == b->direction)
+    {
+        // std::cout << "one must be output and one must be input\n";
+        return false;
+    }
+    if(a->type != b->type)
+    {
+        // std::cout << "the types must match\n";
+        return false;
+    }
+    if(a->node == b->node)
+    {
+        // std::cout << "they can't be part of the same node\n";
+        return false;
+    }
+
+    // std::cout << "accepting link\n";
+    return true;
 }
 
 

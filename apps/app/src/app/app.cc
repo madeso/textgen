@@ -1,6 +1,8 @@
 #include "app/app.h"
 
-#include <imgui.h>
+// #include <iostream>
+
+#include "imgui.h"
 // #define IMGUI_DEFINE_MATH_OPERATORS
 // #include <imgui_internal.h>
 #include "imgui_node_editor.h"
@@ -10,7 +12,31 @@
 
 
 
-namespace node_editor = ax::NodeEditor;
+
+namespace imgui
+{
+    void begin_column()
+    {
+        ImGui::BeginGroup();
+    }
+
+    void next_column()
+    {
+        ImGui::EndGroup();
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+    }
+
+    void end_column()
+    {
+        ImGui::EndGroup();
+    }
+}
+
+
+
+
+namespace ed = ax::NodeEditor;
 
 
 unsigned int create_texture()
@@ -97,23 +123,64 @@ struct Texture : textgen::NativeImage
 };
 
 
+ImColor get_icon_color(textgen::PinType type)
+{
+    switch (type)
+    {
+        case textgen::PinType::image:    return ImColor( 68, 201, 156);
+        default:
+            assert(false && "missing case for pintype in get_icon_color(...)");
+            return ImColor(255, 255, 255);
+        /*
+        ImColor(220,  48,  48)
+        ImColor(147, 226,  74)
+        ImColor(124,  21, 153)
+        ImColor( 51, 150, 215)
+        ImColor(218,   0, 183)
+        ImColor(255,  48,  48)
+        */
+    }
+}
+
+
+template<typename T, typename F>
+void erase_remove_if(std::vector<T>& vec, F&& f)
+{
+    vec.erase
+    (
+        std::remove_if
+        (
+            vec.begin(),
+            vec.end(),
+            std::move(f)
+        ), 
+        vec.end()
+    );
+}
+
+void submit_single_link(const textgen::Link& link)
+{
+    ed::Link(link.id, link.start_pin, link.end_pin);
+}
+
 struct TextGen : App
 {
     textgen::TextGen textgen;
-    node_editor::EditorContext* node_editor_context = nullptr;
+    ed::EditorContext* node_editor_context = nullptr;
 
     TextGen()
     {
-        node_editor::Config config;
+        ed::Config config;
         config.SettingsFile = "textgen-nodes.json";
-        node_editor_context = node_editor::CreateEditor(&config);
+        node_editor_context = ed::CreateEditor(&config);
         textgen.make_native_image_fun = [](const textgen::Image& img){ return std::make_unique<Texture>(img); };
         textgen.nodes.emplace_back(std::make_unique<textgen::NoiseNode>());
+        textgen.nodes.emplace_back(std::make_unique<textgen::DummyNode>());
     }
 
     ~TextGen()
     {
-        node_editor::DestroyEditor(node_editor_context);
+        ed::DestroyEditor(node_editor_context);
     }
     void on_gui() override
     {
@@ -146,38 +213,125 @@ struct TextGen : App
             ImGui::Begin("window");
         }
 
-        node_editor::SetCurrentEditor(node_editor_context);
-        node_editor::Begin("My Editor", ImVec2(0.0, 0.0f));
-        // unsigned int uniqueId = 1;
+        ed::SetCurrentEditor(node_editor_context);
+        ed::Begin("My Editor", ImVec2(0.0, 0.0f));
 
+        submit_nodes();
+        submit_links();
+        handle_interaction();
+
+        ed::End();
+        ed::SetCurrentEditor(nullptr);
+        
+        ImGui::End();
+
+        //ImGui::ShowMetricsWindow();
+    }
+
+
+    void submit_nodes()
+    {
         for(auto& node: textgen.nodes)
         {
             if(node->id == 0) { continue; }
 
-            node_editor::BeginNode(node->id);
+            ed::BeginNode(node->id);
             ImGui::TextUnformatted(node->get_name().c_str());
             if(node->native_image)
             {
                 auto* texture = static_cast<Texture*>(node->native_image.get());
                 ImGui::Image(reinterpret_cast<ImTextureID>(texture->id), ImVec2{128,128});
             }
-            /*
-            node_editor::BeginPin(uniqueId++, node_editor::PinKind::Input);
-                ImGui::Text("-> In");
-            node_editor::EndPin();
-            ImGui::SameLine();
-            node_editor::BeginPin(uniqueId++, node_editor::PinKind::Output);
-                ImGui::Text("Out ->");
-            node_editor::EndPin();
-            */
-            node_editor::EndNode();
-        }
-        node_editor::End();
-        node_editor::SetCurrentEditor(nullptr);
-        
-        ImGui::End();
 
-        //ImGui::ShowMetricsWindow();
+            imgui::begin_column();
+            for(auto& p: node->inputs)
+            {
+                ed::BeginPin(p.id, ed::PinKind::Input);
+                ImGui::Text("-> %s", p.name.c_str());
+                ed::EndPin();
+            }
+            imgui::next_column();
+            for(auto& p: node->outputs)
+            {
+                ed::BeginPin(p.id, ed::PinKind::Output);
+                ImGui::Text("%s ->", p.name.c_str());
+                ed::EndPin();
+            }
+            imgui::end_column();
+            
+            ed::EndNode();
+        }
+    }
+
+
+    void submit_links()
+    {
+        for (auto& link : textgen.links)
+        {
+            submit_single_link(*link.get());
+        }
+    }
+
+
+    void handle_interaction()
+    {
+        handle_link_creation();
+        handle_link_deletion();
+    }
+
+    void handle_link_creation()
+    {
+        if (ed::BeginCreate())
+        {
+            ed::PinId input_pin_id_id;
+            ed::PinId output_pin_id_id;
+            if (ed::QueryNewLink(&input_pin_id_id, &output_pin_id_id))
+            {
+                unsigned int input_pin_id = static_cast<unsigned int>(input_pin_id_id.Get());
+                unsigned int output_pin_id = static_cast<unsigned int>(output_pin_id_id.Get());
+
+                auto* input_pin = textgen.find_pin(input_pin_id);
+                auto* output_pin = textgen.find_pin(output_pin_id);
+                if (textgen.can_create_link(input_pin, output_pin))
+                {
+                    if (ed::AcceptNewItem())
+                    {
+                        textgen.links.emplace_back
+                        (
+                            std::make_unique<textgen::Link>(textgen::Link{textgen.create_new_id(), input_pin_id, output_pin_id})
+                        );
+
+                        submit_single_link(*textgen.links.back().get());
+                    }
+                }
+                else
+                {
+                    ed::RejectNewItem();
+                }
+                
+            }
+        }
+        ed::EndCreate(); // Wraps up object creation action handling.
+    }
+
+    void handle_link_deletion()
+    {
+        if (ed::BeginDelete())
+        {
+            ed::LinkId deleted_link_id_id;
+            while (ed::QueryDeletedLink(&deleted_link_id_id))
+            {
+                unsigned int deleted_link_id = static_cast<unsigned int>(deleted_link_id_id.Get());
+                if (ed::AcceptDeletedItem())
+                {
+                    erase_remove_if(textgen.links, [deleted_link_id](std::unique_ptr<textgen::Link>& link) -> bool
+                    {
+                        return link->id == deleted_link_id;
+                    });
+                }
+            }
+        }
+        ed::EndDelete();
     }
 };
 
