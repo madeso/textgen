@@ -21,3 +21,4 @@ not in order, not exhaustive
 * save to image file
 * auto layout via graphviz?
 * portal nodes
+* shape tool https://www.artstation.com/marketplace/p/oVw9P/es-shape
