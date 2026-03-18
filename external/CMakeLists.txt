@@ -1,3 +1,8 @@
+Include(FetchContent)
+include(ExternalProject)
+
+set(SDL_VERSION_STRING "2.32.10") # tar.gz name on sdl github release page
+
 # -----------------------------------------------------------------------------
 # glad
 set(glad_src
@@ -14,22 +19,73 @@ add_library(external::glad ALIAS glad_lib)
 
 
 
-#${CMAKE_DL_LIBS}
-
-
 # -----------------------------------------------------------------------------
 # sdl
-find_package(SDL2 REQUIRED)
-add_library(sdl_lib INTERFACE)
-target_include_directories(sdl_lib SYSTEM
-    INTERFACE
-        ${SDL2_INCLUDE_DIR}
-)
-target_link_libraries(sdl_lib
-    INTERFACE
-        ${SDL2_LIBRARY}
-)
-add_library(external::sdl ALIAS sdl_lib)
+if(EU_SDL_SOURCE_FETCH)
+    set(SDL_EXTERN_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdl)
+    set(SDL_INSTALL_DIR "${SDL_EXTERN_DIR}/install")
+    message(STATUS "Will download and build ${SDL_VERSION_STRING} to ${SDL_EXTERN_DIR} and install to ${SDL_INSTALL_DIR} when building")
+
+    ExternalProject_Add(
+        SDL2_external
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        URL https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION_STRING}/SDL2-${SDL_VERSION_STRING}.zip
+        PREFIX "${SDL_EXTERN_DIR}/${SDL_VERSION_STRING}"
+        LOG_DIR "${SDL_EXTERN_DIR}/log"
+        INSTALL_DIR ${SDL_INSTALL_DIR}
+        CMAKE_ARGS
+            -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+            -DLIBC=ON
+            -DSDL_STATIC=ON
+            -DSDL_SHARED=OFF
+        LOG_DOWNLOAD ON
+        LOG_CONFIGURE ON
+        LOG_BUILD ON
+        LOG_INSTALL ON
+    )
+    set_target_properties(SDL2_external PROPERTIES FOLDER "Dependencies")
+
+    add_library(external_sdl2 INTERFACE)
+    add_dependencies(external_sdl2 SDL2_external)
+    target_include_directories(external_sdl2 SYSTEM
+        INTERFACE
+            ${SDL_INSTALL_DIR}/include/SDL2
+    )
+    if(WIN32)
+        target_link_libraries(external_sdl2 INTERFACE
+            optimized ${SDL_INSTALL_DIR}/lib/SDL2main.lib
+            optimized ${SDL_INSTALL_DIR}/lib/SDL2-static.lib
+            debug ${SDL_INSTALL_DIR}/lib/SDL2maind.lib
+            debug ${SDL_INSTALL_DIR}/lib/SDL2-staticd.lib
+            version.lib imm32.lib winmm.lib Setupapi.lib
+        )
+    else()
+        # todo(Gustav): specify debug flag?
+        target_link_libraries(external_sdl2 INTERFACE ${SDL_INSTALL_DIR}/lib/libSDL2.a)
+    endif()
+    add_library(external::sdl2 ALIAS external_sdl2)
+endif()
+
+if(EU_SDL_SOURCE_FIND)
+    find_package(SDL2 REQUIRED)
+    add_library(external_sdl2 INTERFACE)
+    target_include_directories(external_sdl2 SYSTEM
+        INTERFACE
+            ${SDL2_INCLUDE_DIR}
+    )
+    target_link_libraries(external_sdl2
+        INTERFACE
+            ${SDL2_LIBRARY}
+            ${CMAKE_DL_LIBS}
+    )
+    if(WIN32)
+    target_link_libraries(external_sdl2
+        INTERFACE
+        Setupapi.lib
+    )
+    endif()
+    add_library(external::sdl2 ALIAS external_sdl2)
+endif()
 
 
 
@@ -106,7 +162,7 @@ target_compile_definitions(imgui_lib
 )
 target_link_libraries(imgui_lib
     PUBLIC
-        external::sdl
+        external::sdl2
         external::glad
 )
 add_library(external::dear_imgui ALIAS imgui_lib)

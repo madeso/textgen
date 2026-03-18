@@ -14,7 +14,7 @@ target_include_directories(textgen
 target_link_libraries(
     textgen
     PUBLIC
-        external::sdl
+        external::sdl2
         external::opengl
         external::dear_imgui
         external::imgui_node_editor
