@@ -11,9 +11,14 @@ set(glad_src
 )
 source_group("" FILES ${glad_src})
 add_library(glad_lib STATIC ${glad_src})
+set_target_properties(glad_lib PROPERTIES FOLDER "External")
 target_include_directories(glad_lib SYSTEM
     PUBLIC
         glad/include
+)
+target_link_libraries(glad_lib
+    PUBLIC
+        ${CMAKE_DL_LIBS}
 )
 add_library(external::glad ALIAS glad_lib)
 
@@ -43,7 +48,7 @@ if(EU_SDL_SOURCE_FETCH)
         LOG_BUILD ON
         LOG_INSTALL ON
     )
-    set_target_properties(SDL2_external PROPERTIES FOLDER "Dependencies")
+    set_target_properties(SDL2_external PROPERTIES FOLDER "External")
 
     add_library(external_sdl2 INTERFACE)
     add_dependencies(external_sdl2 SDL2_external)
@@ -101,7 +106,7 @@ target_include_directories(opengl_lib SYSTEM
 )
 target_link_libraries(opengl_lib
     INTERFACE
-        ${OPENGL_LIBRARIES}
+        OpenGL::GL
         external::glad
 )
 add_library(external::opengl ALIAS opengl_lib)

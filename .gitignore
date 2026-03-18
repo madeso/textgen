@@ -1,2 +1,7 @@
 build/*
 .vscode/
+.lite_workspace.lua
+.vscode
+junk/
+# winmerge backup files
+*.bak
