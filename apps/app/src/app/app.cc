@@ -8,8 +8,11 @@
 #include "imgui_node_editor.h"
 #include "glad/glad.h"
 
-#include "textgen/textgen.h"
+#undef min
+#undef max
 
+#include <cmath>
+#include "textgen/textgen.h"
 
 
 
@@ -65,7 +68,10 @@ struct Texture : textgen::NativeImage
             const unsigned int channels = include_transparency ? 4 : 3;
             pixel_data.resize(img.width * img.height * channels);
             constexpr auto float_to_byte = [](float f) -> unsigned char
-                { return static_cast<unsigned char>(f * 255.0f); };
+                {
+                    const auto clamped = std::max(0.0f, std::min(1.0f, f));
+                    return static_cast<unsigned char>(clamped * 255.0f);
+                };
             for(unsigned int y=0; y<img.height; y+=1)
             {
                 for(unsigned int x=0; x<img.width; x+=1)
