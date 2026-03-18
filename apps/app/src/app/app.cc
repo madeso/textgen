@@ -104,10 +104,13 @@ struct Texture : textgen::NativeImage
                 include_transparency ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE,
                 &pixel_data[0]
             );
+
+            /*
             if(render_pixels == false)
             {
                 glGenerateMipmap(GL_TEXTURE_2D);
             }
+			*/
         }
     }
 
@@ -240,7 +243,8 @@ struct TextGen : App
             if(node->native_image)
             {
                 auto* texture = static_cast<Texture*>(node->native_image.get());
-                ImGui::Image(reinterpret_cast<ImTextureID>(texture->id), ImVec2{128,128});
+				std::int64_t texture_id = texture->id;
+                ImGui::Image(reinterpret_cast<ImTextureID>(texture_id), ImVec2{128,128});
             }
 
             imgui::begin_column();
