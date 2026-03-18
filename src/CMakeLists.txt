@@ -1,12 +1,12 @@
 set(src
-    src/textgen/textgen.h
-    src/textgen/textgen.cc
+    textgen/textgen.h
+    textgen/textgen.cc
 )
 source_group("" FILES ${src})
 add_library(textgen_lib STATIC ${src})
 target_include_directories(textgen_lib
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(textgen_lib
     PRIVATE

@@ -37,5 +37,5 @@ add_library(textgen::project_warnings ALIAS textgen_project_warnings)
 
 
 add_subdirectory(external)
-add_subdirectory(libs)
-add_subdirectory(apps)
+add_subdirectory(src)
+add_subdirectory(examples)
