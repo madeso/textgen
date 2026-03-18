@@ -17,7 +17,7 @@ enum class PinType
     // add SuperImage, ArrayImage, ArraySuperImage, perhaps float or int?
 };
 
-enum class PinDirection { intput, output };
+enum class PinDirection { input, output };
 
 
 struct Rgb

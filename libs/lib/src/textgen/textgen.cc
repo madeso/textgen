@@ -97,7 +97,7 @@ void Image::set(unsigned int x, unsigned int y, const Rgb& c)
 Pin::Pin(PinType t, const std::string& n)
     : id(0)
     , type(t)
-    , direction(PinDirection::intput)
+    , direction(PinDirection::input)
     , name(n)
     , node(nullptr)
 {
@@ -219,7 +219,7 @@ TextGen::work()
         {
             if(p.id == 0) { p.id = create_new_id(); }
             p.node = n.get();
-            p.direction = PinDirection::intput;
+            p.direction = PinDirection::input;
         }
         for(auto& p: n->outputs)
         {
