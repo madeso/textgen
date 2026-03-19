@@ -12,6 +12,9 @@
 #undef max
 
 #include <cmath>
+#include <algorithm>
+#include <memory>
+
 #include "textgen/textgen.h"
 
 
