@@ -3,78 +3,75 @@
 #include "glad/glad.h"
 #include "SDL.h"
 
+#include <string>
+#include <sstream>
+#include <cassert>
 
-const char*
-OpenglErrorToString(GLenum error_code)
+const char* string_from_opengl_error_enum(GLenum error_code)
 {
     switch(error_code)
     {
-    case GL_INVALID_ENUM: return "INVALID_ENUM"; break;
-    case GL_INVALID_VALUE: return "INVALID_VALUE"; break;
-    case GL_INVALID_OPERATION: return "INVALID_OPERATION"; break;
+	case GL_INVALID_ENUM: return "INVALID_ENUM";
+	case GL_INVALID_VALUE: return "INVALID_VALUE";
+	case GL_INVALID_OPERATION: return "INVALID_OPERATION";
 #ifdef GL_STACK_OVERFLOW
-    case GL_STACK_OVERFLOW: return "STACK_OVERFLOW"; break;
+	case GL_STACK_OVERFLOW: return "STACK_OVERFLOW";
 #endif
 #ifdef GL_STACK_UNDERFLOW
-    case GL_STACK_UNDERFLOW: return "STACK_UNDERFLOW"; break;
+	case GL_STACK_UNDERFLOW: return "STACK_UNDERFLOW";
 #endif
-    case GL_OUT_OF_MEMORY: return "OUT_OF_MEMORY"; break;
-    case GL_INVALID_FRAMEBUFFER_OPERATION: return "INVALID_FRAMEBUFFER_OPERATION"; break;
-    default: return "UNKNOWN"; break;
+	case GL_OUT_OF_MEMORY: return "OUT_OF_MEMORY";
+	case GL_INVALID_FRAMEBUFFER_OPERATION: return "INVALID_FRAMEBUFFER_OPERATION";
+	default: return "UNKNOWN";
     }
 }
 
 
 namespace
 {
-    const char*
-    SourceToString(GLenum source)
+	const char* string_from_debug_source(GLenum source)
     {
         switch(source)
         {
-        case GL_DEBUG_SOURCE_API_ARB: return "API"; break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM_ARB: return "Window System"; break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER_ARB: return "Shader Compiler"; break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY_ARB: return "Third Party"; break;
-        case GL_DEBUG_SOURCE_APPLICATION_ARB: return "Application"; break;
-        case GL_DEBUG_SOURCE_OTHER_ARB: return "Other"; break;
+		case GL_DEBUG_SOURCE_API: return "API";
+		case GL_DEBUG_SOURCE_WINDOW_SYSTEM: return "Window System";
+		case GL_DEBUG_SOURCE_SHADER_COMPILER: return "Shader Compiler";
+		case GL_DEBUG_SOURCE_THIRD_PARTY: return "Third Party";
+		case GL_DEBUG_SOURCE_APPLICATION: return "Application";
+		case GL_DEBUG_SOURCE_OTHER: return "Other";
         default: return "Unknown";
         }
     }
 
-    const char*
-    TypeToString(GLenum type)
+	const char* string_from_debug_type(GLenum type)
     {
         switch(type)
         {
-        case GL_DEBUG_TYPE_ERROR_ARB: return "Error"; break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB: return "Deprecated Behaviour"; break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB: return "Undefined Behaviour"; break;
-        case GL_DEBUG_TYPE_PORTABILITY_ARB: return "Portability"; break;
-        case GL_DEBUG_TYPE_PERFORMANCE_ARB: return "Performance"; break;
-        case GL_DEBUG_TYPE_OTHER_ARB: return "Other"; break;
+		case GL_DEBUG_TYPE_ERROR: return "Error";
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return "Deprecated Behaviour";
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: return "Undefined Behaviour";
+		case GL_DEBUG_TYPE_PORTABILITY: return "Portability";
+		case GL_DEBUG_TYPE_PERFORMANCE: return "Performance";
+		case GL_DEBUG_TYPE_OTHER: return "Other";
         default: return "Unknown";
         }
     }
 
-    const char*
-    SeverityToString(GLenum severity)
+	const char* string_from_debug_severity(GLenum severity)
     {
         switch(severity)
         {
-        case GL_DEBUG_SEVERITY_HIGH_ARB: return "high"; break;
-        case GL_DEBUG_SEVERITY_MEDIUM_ARB: return "medium"; break;
-        case GL_DEBUG_SEVERITY_LOW_ARB: return "low"; break;
-        default: return "unknown";
+		case GL_DEBUG_SEVERITY_HIGH: return "High";
+		case GL_DEBUG_SEVERITY_MEDIUM: return "Medium";
+		case GL_DEBUG_SEVERITY_LOW: return "Low";
+		case GL_DEBUG_SEVERITY_NOTIFICATION: return "Notification";
+		default: return "Unknown";
         }
     }
 
 }  // namespace
 
-
-void APIENTRY
-OnOpenglError
-(
+void APIENTRY on_opengl_debug_output(
         GLenum source,
         GLenum type,
         GLuint id,
@@ -84,50 +81,93 @@ OnOpenglError
         const GLvoid* /*userParam*/
 )
 {
+	switch (type)
+	{
+	// this is from ScopedDebugGroup
+	case GL_DEBUG_TYPE_PUSH_GROUP:
+	case GL_DEBUG_TYPE_POP_GROUP: return;
+	default: break;
+	}
+
     // ignore non-significant error/warning codes
-    if(type == GL_DEBUG_TYPE_OTHER_ARB)
-    {
-        return;
-    }
+	const auto is_important = type != GL_DEBUG_TYPE_OTHER;
+	const bool is_low = severity == GL_DEBUG_SEVERITY_LOW || severity == GL_DEBUG_SEVERITY_NOTIFICATION;
 
-    // only display the first 10
-    static int ErrorCount = 0;
-    if(ErrorCount > 10)
-    {
-        return;
-    }
-    ++ErrorCount;
+	if (is_important == false && is_low)
+	{
+		/*
+		Tries to hide the following notification:
+		 Buffer object 40 (bound to GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING_ARB (0),
+		 	GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING_ARB (1), GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING_ARB (2),
+			and GL_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW) will use VIDEO memory as the source
+			for buffer object operations.
+		 Buffer object 41 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is
+		 	GL_STREAM_DRAW) will use VIDEO memory as the source for buffer object operations.
+		 */
+		return;
+	}
 
-    SDL_Log("---------------");
-    SDL_Log("Debug message (%d): %s", id, message);
-    SDL_Log
-    (
-        "Source %s type: %s Severity: %s",
-        SourceToString(source),
-        TypeToString(type),
-        SeverityToString(severity)
-    );
-    // ASSERT(false);
+	// only display the first 10 notifications
+	static int error_count = 0;
+	if (is_important == false)
+	{
+		if (error_count > 10)
+		{
+			return;
+		}
+		++error_count;
+	}
+
+	std::ostringstream ss;
+	ss
+		<< "OpenGL #" << id
+		 << " ["
+			"src: "
+		 << string_from_debug_source(source)
+		 << " | "
+			"type: "
+		 << string_from_debug_type(type)
+		 << " | "
+			"sev: "
+		 << string_from_debug_severity(severity)
+		 << "] "
+			": "
+		 << message;
+	const std::string to_out = ss.str();
+
+	if (is_low)
+	{
+		SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s", to_out.c_str());
+	}
+	else
+	{
+		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "%s", to_out.c_str());
+	}
+
+	if (is_important)
+	{
+		assert(false && "OpenGL error");
+	}
 }
 
-
-
-void
-SetupOpenglDebug()
+bool has_khr_debug()
 {
-    const bool has_debug = GLAD_GL_ARB_debug_output == 1;
-    if(has_debug)
-    {
-        SDL_Log("Enabling OpenGL debug output");
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-        glDebugMessageCallbackARB(OnOpenglError, nullptr);
-        glDebugMessageControlARB(
-                GL_DONT_CARE,
-                GL_DONT_CARE,
-                GL_DONT_CARE,
-                0,
-                nullptr,
-                GL_TRUE);
-    }
+	return GLAD_GL_KHR_debug != 0;
 }
+
+void setup_opengl_debug()
+{
+	if (has_khr_debug())
+	{
+		SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Enabling OpenGL debug output (KHR_debug)");
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
+		glDebugMessageCallback(on_opengl_debug_output, nullptr);
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+	}
+	else
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "KHR_debug not available, OpenGL debug output not enabled");
+	}
+}
+

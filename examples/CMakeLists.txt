@@ -2,11 +2,12 @@
 # main application
 set(app_src
     app/main.cc
+    app/enable_high_performance_graphics.h
     app/app.cc app/app.h
     app/debug_opengl.cc app/debug_opengl.h
 )
 source_group("" FILES ${app_src})
-add_executable(textgen WIN32 MACOSX_BUNDLE ${app_src})
+add_executable(textgen ${app_src})
 target_include_directories(textgen
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

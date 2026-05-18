@@ -19,12 +19,16 @@
 
 // imgui
 #include "imgui.h"
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
 
 // custom/local headers
 #include "app/debug_opengl.h"
 #include "app/app.h"
+
+#include "app/enable_high_performance_graphics.h"
+
+ENABLE_HIGH_PERFORMANCE_GRAPHICS
 
 ///////////////////////////////////////////////////////////////////////////////
 // common "header"
@@ -53,13 +57,45 @@ Cunsigned_int_to_int(unsigned int ui)
 int
 main(int, char**)
 {
-    ///////////////////////////////////////////////////////////////////////////
-    // setup
-    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+	////////////////////////////////////////////////////////////////////////////////
+	// sdl config
+
+	constexpr Uint32 flags = SDL_INIT_VIDEO;
+	if (SDL_Init(flags) != 0)
+	{
+		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "Unable to initialize SDL: %s", SDL_GetError());
+		return -1;
+	}
+
     {
-        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        return 1;
+		SDL_version compiled;
+		SDL_version linked;
+
+		SDL_VERSION(&compiled);
+		SDL_GetVersion(&linked);
+
+		SDL_Log("Compiled against SDL version %u.%u.%u ...\n", compiled.major, compiled.minor, compiled.patch);
+		SDL_Log("Linking against SDL version %u.%u.%u.\n", linked.major, linked.minor, linked.patch);
     }
+
+#if defined(__APPLE__)
+	// GL 3.2 Core + GLSL 150
+	const char* glsl_version = "#version 150";
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);	// Always required on Mac
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+#else
+	// GL 3.0 + GLSL 130
+	const char* glsl_version = "#version 130";
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);  // was 0 in dear imgui example??
+#endif
+
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
@@ -69,44 +105,59 @@ main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
     int width = 1280;
     int height = 720;
 
-    SDL_Window* window = SDL_CreateWindow
+    SDL_Window* sdl_window = SDL_CreateWindow
     (
         "textgen",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         width,
         height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
     );
 
-    if(window == nullptr)
+    if(sdl_window == nullptr)
     {
-        SDL_Log("Could not create window: %s\n", SDL_GetError());
-        return 1;
+		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s", SDL_GetError());
+		return -1;
     }
 
-    SDL_GLContext glcontext = SDL_GL_CreateContext(window);
+    SDL_GLContext sdl_gl_context = SDL_GL_CreateContext(sdl_window);
 
-    if (!gladLoadGLLoader(SDL_GL_GetProcAddress))
+	if (sdl_gl_context == nullptr)
     {
-        SDL_Log("Failed to initialize OpenGL context");
+		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "Could not create gl context: %s", SDL_GetError());
+
+		SDL_DestroyWindow(sdl_window);
+		sdl_window = nullptr;
+
         return -1;
     }
 
-    const auto* renderer = glGetString(GL_RENDERER); // get renderer string
-    const auto* version = glGetString(GL_VERSION); // version as a string
-    SDL_Log("Renderer: %s\n", renderer);
-    SDL_Log("Version: %s\n", version);
+	SDL_GL_MakeCurrent(sdl_window, sdl_gl_context);
+	SDL_GL_SetSwapInterval(1);	// Enable vsync
+	
+	if (gladLoadGLLoader(SDL_GL_GetProcAddress) == 0)
+	{
+		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "Failed to load OpenGL");
 
-    // imgui setup
-    const char* glsl_version = "#version 130";
+		SDL_GL_DeleteContext(sdl_gl_context);
+		sdl_gl_context = nullptr;
+
+		SDL_DestroyWindow(sdl_window);
+		sdl_window = nullptr;
+
+		return -1;
+	}
+
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loaded OpenGL %d.%d", GLVersion.major, GLVersion.minor);
+
+	///////////////////////////////////////////////////////////////
+	// load opengl debug
+	setup_opengl_debug();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -116,7 +167,7 @@ main(int, char**)
 
     ImGui::StyleColorsDark();
     
-    ImGui_ImplSDL2_InitForOpenGL(window, glcontext);
+    ImGui_ImplSDL2_InitForOpenGL(sdl_window, sdl_gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     const auto update_viewport = [&]()
@@ -193,7 +244,7 @@ main(int, char**)
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
 
-        SDL_GL_SwapWindow(window);
+        SDL_GL_SwapWindow(sdl_window);
     }
 
     app.reset();
@@ -201,8 +252,8 @@ main(int, char**)
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
 
-    SDL_GL_DeleteContext(glcontext);
-    SDL_DestroyWindow(window);
+    SDL_GL_DeleteContext(sdl_gl_context);
+    SDL_DestroyWindow(sdl_window);
 
     SDL_Quit();
     return 0;

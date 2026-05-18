@@ -57,12 +57,11 @@ struct Texture : textgen::NativeImage
 {
     unsigned int id;
 
-    Texture(const textgen::Image& img)
+    Texture(const textgen::Image& img, bool render_pixels = false)
         : id(create_texture())
     {
         // make options?
         constexpr bool include_transparency = false;
-        constexpr bool render_pixels = false;
         constexpr bool clamp = true;
 
         // transform img to pixel_data
@@ -111,15 +110,13 @@ struct Texture : textgen::NativeImage
                 img.width, img.height,
                 0,
                 include_transparency ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE,
-                &pixel_data[0]
+                pixel_data.data()
             );
 
-            /*
             if(render_pixels == false)
             {
                 glGenerateMipmap(GL_TEXTURE_2D);
             }
-			*/
         }
     }
 
@@ -237,7 +234,29 @@ struct TextGen : App
         
         ImGui::End();
 
+        if (!main_window)
+        {
+            ImGui::Begin("debug");
+            debug_draw();
+            ImGui::End();
+        }
+
         //ImGui::ShowMetricsWindow();
+    }
+
+    void debug_draw()
+    {
+        for (auto& node : textgen.nodes)
+        {
+            if (node->id == 0) { continue; }
+
+            ImGui::TextUnformatted(node->get_name().c_str());
+            if (node->native_image)
+            {
+                auto* texture = static_cast<Texture*>(node->native_image.get());
+                ImGui::Image(static_cast<ImTextureID>(texture->id), ImVec2{ 128,128 });
+            }
+        }
     }
 
 
@@ -252,8 +271,7 @@ struct TextGen : App
             if(node->native_image)
             {
                 auto* texture = static_cast<Texture*>(node->native_image.get());
-				std::int64_t texture_id = texture->id;
-                ImGui::Image(reinterpret_cast<ImTextureID>(texture_id), ImVec2{128,128});
+                ImGui::Image(static_cast<ImTextureID>(texture->id), ImVec2{128,128}, ImVec2(0, 1), ImVec2(1, 0));
             }
 
             imgui::begin_column();

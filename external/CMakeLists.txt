@@ -3,29 +3,28 @@ include(ExternalProject)
 
 set(SDL_VERSION_STRING "2.32.10") # tar.gz name on sdl github release page
 
-# -----------------------------------------------------------------------------
+###################################################################################################
 # glad
-set(glad_src
+add_library(external_glad STATIC
     glad/src/glad.c
     glad/include/glad/glad.h
 )
-source_group("" FILES ${glad_src})
-add_library(glad_lib STATIC ${glad_src})
-set_target_properties(glad_lib PROPERTIES FOLDER "External")
-target_include_directories(glad_lib SYSTEM
+set_target_properties(external_glad PROPERTIES FOLDER "External")
+target_include_directories(external_glad SYSTEM
     PUBLIC
         glad/include
 )
-target_link_libraries(glad_lib
+target_link_libraries(external_glad
     PUBLIC
         ${CMAKE_DL_LIBS}
 )
-add_library(external::glad ALIAS glad_lib)
+add_library(external::glad ALIAS external_glad)
 
 
 
-# -----------------------------------------------------------------------------
-# sdl
+###################################################################################################
+# SDL2
+###################################################################################################
 if(EU_SDL_SOURCE_FETCH)
     set(SDL_EXTERN_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdl)
     set(SDL_INSTALL_DIR "${SDL_EXTERN_DIR}/install")
@@ -94,27 +93,17 @@ endif()
 
 
 
-
-# -----------------------------------------------------------------------------
-# opengl
+###################################################################################################
+# OpenGL
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
-add_library(opengl_lib INTERFACE)
-target_include_directories(opengl_lib SYSTEM
-    INTERFACE
-        ${SDL2_INCLUDE_DIR}
-)
-target_link_libraries(opengl_lib
-    INTERFACE
-        OpenGL::GL
-        external::glad
-)
-add_library(external::opengl ALIAS opengl_lib)
+add_library(external_opengl INTERFACE)
+target_link_libraries(external_opengl INTERFACE OpenGL::GL)
+add_library(external::opengl ALIAS external_opengl)
 
 
 
-
-# -----------------------------------------------------------------------------
+###################################################################################################
 # fast noise lite
 add_library(fastnoiselite_lib INTERFACE
 )
@@ -127,9 +116,9 @@ add_library(external::fast_noise_lite ALIAS fastnoiselite_lib)
 
 
 
-# -----------------------------------------------------------------------------
-# dear imgui
-add_library(imgui_lib STATIC
+###################################################################################################
+# dear_imgui
+set(dear_imgui_src
     imgui/imconfig.h
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
@@ -138,44 +127,38 @@ add_library(imgui_lib STATIC
     imgui/imgui_widgets.cpp
     imgui/imgui.cpp
     imgui/imgui.h
-    # todo: look into how different stb libs work together
     imgui/imstb_rectpack.h
     imgui/imstb_textedit.h
     imgui/imstb_truetype.h
 
-    imgui/misc/cpp/imgui_stdlib.cpp
-    imgui/misc/cpp/imgui_stdlib.h
-    imgui/backends/imgui_impl_sdl.cpp
-    imgui/backends/imgui_impl_sdl.h
+    imgui/backends/imgui_impl_sdl2.cpp
+    imgui/backends/imgui_impl_sdl2.h
     imgui/backends/imgui_impl_opengl3.cpp
     imgui/backends/imgui_impl_opengl3.h
-    imgui/backends/imgui_impl_opengl3_loader.h
 )
-target_include_directories(imgui_lib SYSTEM
+add_library(dear_imgui STATIC ${dear_imgui_src})
+set_target_properties(dear_imgui PROPERTIES FOLDER "External")
+source_group("" FILES ${dear_imgui_src})
+target_include_directories(dear_imgui SYSTEM
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/
-        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp/
-        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
+        imgui/
+        imgui/backends/
 )
-target_compile_definitions(imgui_lib
-    PRIVATE
-        -DIMGUI_IMPL_OPENGL_LOADER_GLAD
+target_link_libraries(dear_imgui
     PUBLIC
-        -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
-        # this does not switch to utf-32, this only extends dear imgui to support more fonts 32
-        # -DIMGUI_USE_WCHAR32
-)
-target_link_libraries(imgui_lib
-    PUBLIC
-        external::sdl2
         external::glad
+        external::opengl
+        external::sdl2
 )
-add_library(external::dear_imgui ALIAS imgui_lib)
+target_compile_definitions(dear_imgui
+    PUBLIC
+        IMGUI_IMPL_OPENGL_LOADER_GLAD
+)
+add_library(external::dear_imgui ALIAS dear_imgui)
 
 
 
-
-# -----------------------------------------------------------------------------
+###################################################################################################
 # imgui node editor
 add_library(imgui_node_editor_lib STATIC
     imgui-node-editor/crude_json.cpp
@@ -208,7 +191,7 @@ add_library(external::imgui_node_editor ALIAS imgui_node_editor_lib)
 
 
 
-# -----------------------------------------------------------------------------
+###################################################################################################
 # stb image
 add_library(stb_image_lib STATIC
     stb/stb-image.cc

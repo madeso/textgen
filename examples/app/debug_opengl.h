@@ -3,7 +3,7 @@
 
 
 void
-SetupOpenglDebug();
+setup_opengl_debug();
 
 
 #endif  // DEBUG_OPENGL_H
